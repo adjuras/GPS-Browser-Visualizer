@@ -1,6 +1,9 @@
 body { margin:0; padding:0; }
-
-#map { position:absolute; left:0px; top:0; bottom:0; width:100%; z-index:1; }
+/*
+transform: rotateZ(-27.9deg); bistrina
+transform: rotateZ(-32.3deg); lokrum
+*/
+#map { position:absolute; left:0px; top:0; bottom:0; width:100%; z-index:1;}
 
 button {
     position: relative;

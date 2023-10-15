@@ -1,8 +1,12 @@
 // gps
-var lat = "N/A";
-var lng = "N/A";
-var center;
-var points = 0;
+var latPos = "N/A";
+var lngPos = "N/A";
+var latUSBL = "N/A";
+var lngUSBL = "N/A";
+var centerPos;
+var centerUSBL;
+var pointsPos = 0;
+var pointUSBL = 0;
 var speed = 0;
 
 // ros
@@ -27,69 +31,81 @@ ros.on('close', function() {
 var layerStyle = "satellite-v8";
 
 // example: https://docs.mapbox.com/mapbox.js/api/v3.2.1/
-L.mapbox.accessToken = "<INSERT YOUR MAPBOX API KEY HERE>";
-var map = L.mapbox.map('map', null, {minZoom:3})
-    .setView([0, 0], 3);
+L.mapbox.accessToken = "pk.eyJ1IjoiYWRqdXJhcyIsImEiOiJja3czbzRrMzIwOHRyMnJudnJrMzNic2k5In0.WTOIjxycE_w6hdyUNKDqVQ";
+var map = L.mapbox.map('map', null, {minZoom:7,maxZoom:24,
+layers: [L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+    maxZoom: 24,
+    maxNativeZoom: 20,
+    subdomains:['mt0','mt1','mt2','mt3']
+})]
+})
+    .setView([42.625300051062084, 18.12355958871609], 17); //[42.87166,17.700805] bistrina [43.3611131146, 5.305774436] marseille
+//console.log(L.layerGroup())
 L.control.locate().addTo(map);
-var polyline = L.polyline([]).addTo(map);
+var polylinePos = L.polyline([]).addTo(map);
+polylinePos.setStyle({color: '#920b00'}); // red
+var polylineUSBL = L.polyline([]).addTo(map);
+polylineUSBL.setStyle({color: '#ffd22b'}); // yellow
 var layerGroup = L.layerGroup().addTo(map);
 layerGroup.addLayer(L.mapbox.styleLayer("mapbox://styles/mapbox/" + layerStyle));
 
+drawTireMarkers();
 
-function draw() {
-    polyline.addLatLng(center);
-    if (points == 0) {
-        map.setView(center, 20);            
+function drawPos() {
+    polylinePos.addLatLng(centerPos);
+    if (pointsPos == 0) {
+        map.setView(centerPos, 20);            
     } else {
-        map.setView(center);
+        map.setView(centerPos);
     }
-    points++;
+    pointsPos++;
 }
+
+function drawTireMarkers() {
+	// left 2.7 meters 43.36082528, 5.30571771
+	// center 3.4 meters 43.36085878, 5.30564011
+	// right 3.7 meters 43.36082945 5.3054971
+	L.marker([43.360805734, 5.30572024986],{'title':'left'}).addTo(map);
+	L.marker([43.3608375017, 5.30564439012],{'title':'center'}).addTo(map);
+	L.marker([43.3608097259, 5.30550118437],{'title':'right'}).addTo(map);
+}
+
+function drawUSBL() {
+    polylineUSBL.addLatLng(centerUSBL);
+}
+
 
 var listener_pos = new ROSLIB.Topic({
     ros : ros,
-    name : '/piksi/navsatfix_best_fix',
+    name : '/matrice/rov_global_position',
     messageType : 'sensor_msgs/NavSatFix'
 });
 
-var listener_vel = new ROSLIB.Topic({
+var listener_ref = new ROSLIB.Topic({
     ros : ros,
-    name : '/piksi/vel_ned',
-    messageType : 'piksi_rtk_msgs/VelNed'
+    name : '/matrice/rov_global_position_refraction',
+    messageType : 'sensor_msgs/NavSatFix'
 });
 
-var listener_status = new ROSLIB.Topic({
-    ros : ros,
-    name : '/piksi/debug/receiver_state',
-    messageType : 'piksi_rtk_msgs/ReceiverState_V2_4_1'
-});
 
 listener_pos.subscribe(function(message) {
-    lat = message.latitude;
-    lng = message.longitude;
-    center = L.latLng(lat, lng);
-    if (center)
-        draw();
-    document.getElementById("position").innerHTML = "Latitude:" + lat + " Longitude:" + lng;
+    latPos = message.latitude;
+    lngPos = message.longitude;
+    centerPos = L.latLng(latPos, lngPos);
+    if (centerPos)
+        drawPos();
+    document.getElementById("position").innerHTML = "Latitude:" + latPos + " Longitude:" + lngPos;
 });
 
-
-listener_vel.subscribe(function(message) {
-    var vel_n = message.n;
-    var vel_e = message.e;
-    var vel_d = message.d;
-    // km/h speed
-    speed = Math.sqrt(vel_n*vel_n + vel_d*vel_d + vel_e*vel_e)*0.0036;
-    var cur_color = switchColor(speed);
-    polyline.setStyle({color: cur_color});
-    document.getElementById("speed").innerHTML = "Speed: " + speed.toPrecision(4) + " Km/h";
-
+listener_ref.subscribe(function(message) {
+    latUSBL = message.latitude;
+    lngUSBL = message.longitude;
+    centerUSBL = L.latLng(latUSBL, lngUSBL);
+    if (centerUSBL)
+        drawUSBL();
+    document.getElementById("position").innerHTML = "Latitude:" + latUSBL + " Longitude:" + lngUSBL;
 });
 
-listener_status.subscribe(function(message) {
-    document.getElementById("fix").innerHTML = "Mode: " + message.fix_mode +
-                                               "                   Num_sat " + message.num_sat;
-})
 
 colors = ['#ffd22b', '#ffb524', '#fe981e', '#f67b18', '#ea6012', '#da460d', '#c62d09', '#ae1705', '#920b00'];
 function switchColor(speed) {
